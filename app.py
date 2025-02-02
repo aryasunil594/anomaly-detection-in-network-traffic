@@ -6,11 +6,13 @@ from sklearn.metrics import classification_report
 import joblib
 
 # Load your network traffic dataset (example: CSV format)
-data = pd.read_csv('network_traffic.csv')
+data = pd.read_csv('synthetic_network_traffic.csv')
 
 # Feature selection (Assuming the dataset has columns: 'src_ip', 'dst_ip', 'packet_size', etc.)
-X = data[['packet_size', 'duration', 'src_bytes', 'dst_bytes']]  # Example features
-y = data['label']  # 1 for anomaly, 0 for normal traffic
+X = data[['SourceIP', 'DestinationIP', 'SourcePort', 'DestinationPort', 
+          'Protocol', 'BytesSent', 'BytesReceived', 'PacketsSent', 
+          'PacketsReceived', 'Duration']]
+y = data['IsAnomaly']  # Update this if 'label' was incorrect
 
 # Train-test split
 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=42)
@@ -55,7 +57,7 @@ if st.button('Predict Anomaly'):
     if prediction == 1:
         st.write("Prediction: Normal Traffic")
     else:
-        st.write("Prediction: Anomaly Detected")
+        st.write("Prediction: Anomaly Detected")
         
 import streamlit as st
 import pandas as pd
@@ -75,15 +77,54 @@ if uploaded_file is not None:
     data = pd.read_csv(uploaded_file)
     st.write("Uploaded Data:", data)
 
-    # Assume the necessary features are selected
-    features = data[['sourceip', 'destinationip', 'sourceport', 'destinationport',
-                     'protocol', 'bytessent', 'bytesreceived', 'packetssent',
-                     'packetsreceived', 'duration']]
+    # Ensure column names match dataset
+    try:
+        features = data[['SourceIP', 'DestinationIP', 'SourcePort', 'DestinationPort', 
+                         'Protocol', 'BytesSent', 'BytesReceived', 'PacketsSent', 
+                         'PacketsReceived', 'Duration']]
+        
+        # Get predictions
+        predictions = model.predict(features)
+        data['Prediction'] = np.where(predictions == 1, "Normal", "Anomaly")
 
-    # Get predictions from the model
-    predictions = model.predict(features)
-    data['Prediction'] = predictions
+        # Display predictions
+        st.write("Predictions:")
+        st.dataframe(data)
+    except KeyError:
+        st.error("Error: Column names in CSV do not match expected format.")
 
-    # Display the predictions
-    st.write("Predictions (1 = Anomaly, -1 = Normal):")
-    st.dataframe(data)
+import numpy as np
+# Manual input for single prediction
+st.subheader("Manual Prediction")
+
+packet_size = st.number_input('Packet Size', min_value=0, max_value=1500, step=1)
+duration = st.number_input('Duration', min_value=0, step=1)
+src_bytes = st.number_input('Source Bytes', min_value=0, step=1)
+dst_bytes = st.number_input('Destination Bytes', min_value=0, step=1)
+
+# Collect input data for prediction
+input_data = np.array([[packet_size, duration, src_bytes, dst_bytes]])
+
+# Ensure input data has the correct shape (10 features)
+expected_features = 10
+if input_data.shape[1] != expected_features:
+    missing_features = expected_features - input_data.shape[1]
+    input_data = np.hstack([input_data, np.zeros((input_data.shape[0], missing_features))])
+    
+# Fill missing values with 0 to match the model's expected 10 features
+input_data = np.array([[0, 0, 0, 0, 0, src_bytes, dst_bytes, 0, 0, duration]])
+
+# Debugging: Print input data shape and model's expected features
+st.write(f"Input data shape: {input_data.shape}")
+st.write(f"Model expects: {model.n_features_in_} features")
+
+# Button to trigger the prediction
+if st.button("Predict Anomaly"):
+    try:
+        prediction = model.predict(input_data)
+        if prediction == 1:
+            st.write("Prediction: Normal Traffic")
+        else:
+            st.write("Prediction: Anomaly Detected")
+    except ValueError as e:
+        st.error(f"Error: {e}")
