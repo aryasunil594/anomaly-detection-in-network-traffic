@@ -27,7 +27,7 @@ y_pred = model.predict(X_test)
 y_pred = np.where(y_pred == 1, 0, 1)  # Convert -1 (outlier) to 1 for anomaly, and 1 to 0 for normal traffic
 
 # Print classification report
-print(classification_report(y_test, y_pred))
+print(classification_report(y_test, y_pred))
 
 import streamlit as st
 import pandas as pd
